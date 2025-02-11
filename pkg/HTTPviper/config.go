@@ -130,30 +130,29 @@ func (v *Config) ZapLogConfig() []byte {
 
 // ConfigInit initializes the configuration
 func ConfigInit(envPrefix string, cfgName string) Config {
-	pflag.Parse()
+	pflag.Parse() //解析命令行参数
 
+	//初始化
 	v := viper.New()
 	config := Config{Viper: v}
 	viper := config.Viper
-	/*
-		viper.BindPFlags 自动绑定了所有命令行参数，如果只需要其中一部分，可以用viper.BingPflag选择性绑定，如
-		viper.BindPFlag("global.source", pflag.Lookup("global.source"))
-	*/
+	//绑定命令行参数
+	//viper.BindPFlags 自动绑定了所有命令行参数，如果只需要其中一部分，
+	//可以用viper.BingPflag选择性绑定，如
+	//viper.BindPFlag("global.source", pflag.Lookup("global.source"))
 	viper.BindPFlags(pflag.CommandLine)
 	config.SetDefaultValue()
 
-	// read from env
+	//读取环境变量
 	viper.AutomaticEnv()
 	// so that client.foo maps to MYAPP_CLIENT_FOO
 	viper.SetEnvPrefix(envPrefix)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	if configVar != "" {
-		/*
-			如果设置了--config参数，尝试从这里解析
-			它可能是一个Remote Config，来自etcd或consul
-			也可能是一个本地文件
-		*/
+		//如果设置了--config参数，尝试从这里解析
+		//它可能是一个Remote Config，来自etcd或consul
+		//也可能是一个本地文件
 		u, err := url.Parse(configVar)
 		if err != nil {
 			klog.Fatalf("error parsing: '%s'", configVar)
@@ -167,11 +166,8 @@ func ConfigInit(envPrefix string, cfgName string) Config {
 			viper.SetConfigFile(configVar)
 		}
 	} else {
-		/*
-			尝试搜索若干默认路径，先后顺序如下:
-			其中<ext> 是 viper所支持的文件类型，如yml，json等
-		*/
-
+		//尝试搜索若干默认路径，先后顺序如下:
+		//其中<ext> 是 viper所支持的文件类型，如yml，json等
 		viper.SetConfigName(cfgName) // name of config file (without extension)
 		viper.AddConfigPath("/etc/mygomall/config")
 		viper.AddConfigPath("$HOME/.mygomall/")
@@ -180,6 +176,7 @@ func ConfigInit(envPrefix string, cfgName string) Config {
 		viper.AddConfigPath("../../../config")
 	}
 
+	//是否使用远程配置开启监听
 	if isRemoteConfig {
 		if err := viper.ReadRemoteConfig(); err != nil {
 			klog.Fatalf("error reading config: %s", err)
@@ -189,7 +186,6 @@ func ConfigInit(envPrefix string, cfgName string) Config {
 		viper.WatchRemoteConfig()
 		// 另启动一个协程来监测远程配置文件
 		go config.WatchRemoteConf()
-
 	} else {
 		if err := viper.ReadInConfig(); err != nil {
 			klog.Fatalf("error reading config: %s", err)
@@ -202,7 +198,6 @@ func ConfigInit(envPrefix string, cfgName string) Config {
 			klog.Infof("Global.Source: '%s'", viper.GetString("Global.Source"))
 			klog.Infof("Global.ChangeMe: '%s'", viper.GetString("Global.ChangeMe"))
 		})
-
 	}
 
 	return config

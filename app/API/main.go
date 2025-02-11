@@ -29,6 +29,7 @@ import (
 
 //使用hertz提供api，然后转发http请求给rpc
 
+// 使用tls加密和进行身份验证
 type TLs struct {
 	Enable bool `json:"Enable" yaml:"Enable"`
 	Config tls.Config
@@ -38,7 +39,8 @@ type TLs struct {
 }
 
 type Http2 struct {
-	Enable           bool     `json:"Enable" yaml:"Enable"`
+	Enable bool `json:"Enable" yaml:"Enable"`
+	//禁用长连接
 	DisableKeepalive bool     `json:"DisableKeepalive" yaml:"DisableKeepalive"`
 	ReadTimeout      Duration `json:"ReadTimeout" yaml:"ReadTimeout"`
 }
@@ -46,16 +48,18 @@ type Http2 struct {
 type HertzConfig struct {
 	UseNetpoll bool  `json:"useNetpoll" yaml:"useNetpoll"`
 	Http2      Http2 `json:"http2" yaml:"http2"`
-	TLs        TLs   `json:"tls" yaml:"tls"`
+	Tls        TLs   `json:"tls" yaml:"tls"`
 }
 
+// 用于处理 JSON 序列化和反序列化。
 type Duration struct {
 	time.Duration
 }
 
 var (
+	//初始化viper
 	Config = HTTPviper.ConfigInit("MyGoMallAPI", "APIConfig")
-
+	//config的各种需要用到的参数
 	ServiceName = Config.Viper.GetString("MyGoMallService")
 	ServiceAddr = fmt.Sprintf("%s:%d",
 		Config.Viper.GetString("MyGoMallService.addr"),
@@ -65,11 +69,13 @@ var (
 		Config.Viper.GetInt("Etcd.Port"))
 
 	Jwt         *jwt.JWT
-	hertzConfig HertzConfig
+	hertzConfig HertzConfig //hertz配置信息
 )
 
+// 序列化处理
 func (d Duration) MarshalJSON() (data []byte, err error) { return json.Marshal(d.String()) }
 
+// 反序列化的处理
 func (d *Duration) UnMarshalJSON(b []byte) error {
 	var v interface{}
 	if err := json.Unmarshal(b, &v); err != nil {
@@ -94,12 +100,13 @@ func (d *Duration) UnMarshalJSON(b []byte) error {
 }
 
 //初始化api
-
 func Init() {
 	rpc.InitRPC(&Config)
+	//初始化jwt
 	Jwt = jwt.NewJWT([]byte(Config.Viper.GetString("JWT.signingKey")))
 }
 
+// 初始化hertz配置
 func InitHertzConfig() {
 	hertzV, err := json.Marshal(Config.Viper.Sub("Hertz").AllSettings())
 	if err != nil {
@@ -110,8 +117,7 @@ func InitHertzConfig() {
 	}
 }
 
-//初始化hertz
-
+// 初始化hertz
 func InitHertz() *server.Hertz {
 	InitHertzConfig()
 
@@ -144,15 +150,15 @@ func InitHertz() *server.Hertz {
 
 	// 网络库
 	hertzNet := standard.NewTransporter
-	if hertzCfg.UseNetpoll {
+	if hertzConfig.UseNetpoll {
 		hertzNet = netpoll.NewTransporter
 	}
 	opts = append(opts, server.WithTransport(hertzNet))
 
 	// TLS & Http2
-	tlsEnable := hertzCfg.Tls.Enable
-	h2Enable := hertzCfg.Http2.Enable
-	hertzCfg.Tls.Cfg = tls.Config{
+	tlsEnable := hertzConfig.Tls.Enable
+	h2Enable := hertzConfig.Http2.Enable
+	hertzConfig.Tls.Config = tls.Config{
 		MinVersion:       tls.VersionTLS12,
 		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
 		CipherSuites: []uint16{
@@ -162,14 +168,14 @@ func InitHertz() *server.Hertz {
 		},
 	}
 	if tlsEnable {
-		cert, err := tls.LoadX509KeyPair(hertzCfg.Tls.Cert, hertzCfg.Tls.Key)
+		cert, err := tls.LoadX509KeyPair(hertzConfig.Tls.Cert, hertzConfig.Tls.Key)
 		if err != nil {
 			hlog.Error(err)
 		}
-		hertzCfg.Tls.Cfg.Certificates = append(hertzCfg.Tls.Cfg.Certificates, cert)
-		opts = append(opts, server.WithTLS(&hertzCfg.Tls.Cfg))
+		hertzConfig.Tls.Config.Certificates = append(hertzConfig.Tls.Config.Certificates, cert)
+		opts = append(opts, server.WithTLS(&hertzConfig.Tls.Config))
 
-		if alpn := hertzCfg.Tls.ALPN; alpn {
+		if alpn := hertzConfig.Tls.ALPN; alpn {
 			opts = append(opts, server.WithALPN(alpn))
 		}
 	} else if h2Enable {
@@ -184,10 +190,10 @@ func InitHertz() *server.Hertz {
 	// Protocol
 	if h2Enable {
 		h.AddProtocol("h2", factory.NewServerFactory(
-			h2config.WithReadTimeout(hertzCfg.Http2.ReadTimeout.Duration),
-			h2config.WithDisableKeepAlive(hertzCfg.Http2.DisableKeepalive)))
+			h2config.WithReadTimeout(hertzConfig.Http2.ReadTimeout.Duration),
+			h2config.WithDisableKeepAlive(hertzConfig.Http2.DisableKeepalive)))
 		if tlsEnable {
-			hertzCfg.Tls.Cfg.NextProtos = append(hertzCfg.Tls.Cfg.NextProtos, "h2")
+			hertzConfig.Tls.Config.NextProtos = append(hertzConfig.Tls.Config.NextProtos, "h2")
 		}
 	}
 
