@@ -1,8 +1,9 @@
-go 1.23.2
+go 1.22.11
 
 use (
 	./app/auth
 	./app/user
 	./pkg
 	./rpc_gen
+	./app/API
 )
