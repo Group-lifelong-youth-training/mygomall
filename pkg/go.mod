@@ -1,6 +1,6 @@
 module github.com/Group-lifelong-youth-training/mygomall/pkg
 
-go 1.23.2
+go 1.23.5
 
 require github.com/kitex-contrib/obs-opentelemetry v0.2.9
 

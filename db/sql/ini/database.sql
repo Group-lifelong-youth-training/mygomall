@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
-CREATE DATABASE IF NOT EXISTS `order`  
+CREATE DATABASE IF NOT EXISTS `order`
    DEFAULT CHARACTER SET = 'utf8mb4';;
 USE `order`;
 CREATE TABLE IF NOT EXISTS `local_message` (
@@ -95,3 +95,48 @@ CREATE TABLE IF NOT EXISTS `order_item` (
 --   KEY `idx_order_item_order_id_refer` (`order_id_refer`),
 --   CONSTRAINT `fk_order_order_items` FOREIGN KEY (`order_id_refer`) REFERENCES `order` (`id`)
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+
+
+#product service database
+#一个商品可能有多个类别(category)，product表用json存储所有类别的name，用类别的name从catagory表中可以查到catgory描述等其他信息
+#商品id用雪花算法生成int64类型的数
+CREATE DATABASE IF NOT EXISTS `product`
+   DEFAULT CHARACTER SET = 'utf8mb4';
+USE `product`;
+#商品表
+CREATE TABLE IF NOT EXISTS `product` (
+  `id` BIGINT NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `name` VARCHAR(255) NOT NULL UNIQUE,
+  `description` TEXT,
+  `picture` VARCHAR(255),
+  `price` FLOAT NOT NULL,
+  `store` INT NOT NULL,
+  `status` TINYINT(1) default 1,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+#多对多 商品-类别表
+CREATE TABLE IF NOT EXISTS `product_category` (
+    `id` BIGINT NOT NULL,
+    `product_id` BIGINT NOT NULL,
+    `category_id` BIGINT NOT NULL,
+    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    `description` TEXT,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+#类别表
+CREATE TABLE IF NOT EXISTS `category` (
+    `id` BIGINT NOT NULL,
+    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `name` VARCHAR(255) NOT NULL UNIQUE,
+    `description` TEXT,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+

@@ -3,6 +3,7 @@ go 1.23.5
 use (
 	./app/auth
 	./app/order
+	./app/product
 	./app/user
 	./pkg
 	./rpc_gen
